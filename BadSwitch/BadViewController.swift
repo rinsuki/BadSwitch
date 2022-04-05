@@ -33,6 +33,8 @@ class BadViewController: NSViewController {
         CVDisplayLinkCreateWithActiveCGDisplays(&displayLink)
         return displayLink!
     }()
+    var previousFrame: Int64 = -1
+    var renderedFrames = 0
     var pixels = [Pixel]()
 
     lazy var player = AVPlayer(url: data.url.appendingPathComponent("music.mp4"))
@@ -77,11 +79,13 @@ class BadViewController: NSViewController {
                 let currentTime = self.player.currentTime()
                 let data = self.data
                 let frame = (Int64(currentTime.value) * Int64(data.fps)) / Int64(currentTime.timescale)
-                if data.frames.count > frame, frame >= 0 {
+                if data.frames.count > frame, frame >= 0, self.previousFrame != frame {
+                    self.previousFrame = frame
                     let name = data.frames[Int(frame)]
                     let image = Array(try! Data(contentsOf: data.url.appendingPathComponent("\(name)")).map { $0 < 128 }.enumerated())
                     if image.count == self.pixels.count {
                         DispatchQueue.main.sync {
+                            self.renderedFrames += 1
                             let start = Date()
                             // これ意味あるのかな
                             NSAnimationContext.beginGrouping()
@@ -95,7 +99,7 @@ class BadViewController: NSViewController {
                                 pixel.state = bit
                             }
                             NSAnimationContext.endGrouping()
-                            self.view.window?.title = "\(name) (\(Int(-start.timeIntervalSinceNow * 1000))ms)"
+                            self.view.window?.title = "\(name) (\(Int(-start.timeIntervalSinceNow * 1000))ms, rendered \(self.renderedFrames) frames)"
                         }
                     }
                 }
